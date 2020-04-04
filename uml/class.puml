@@ -1,0 +1,169 @@
+@startuml
+
+class Map{
+    + vector<MapObject*> objects
+    + char[][] tiles
+    + vector<startPos> fightStartPoses
+}
+
+class startPos
+{
+    + vector<Point> team1
+    + vector<Point> team2
+}
+
+class Point{
+    + int x
+    + int y
+}
+
+class Pos{
+    + int angle
+}
+
+Pos -up-|> Point
+
+class Value
+{
+    +int val
+    +int type
+}
+
+class Range
+{
+    +int valLow
+    +int valHigh
+    +int type
+    +Value sample()
+}
+
+class BagObject {
+    # int individualWeight
+    + int itemId
+    + int itemCount
+    + int getWeight()
+    + bool operator==(BagObject & other)
+}
+
+class BagItem {
+    + int itemType
+    + Characteristics charac
+    + bool operator==(BagItem & other)
+}
+
+class BagWeapon
+{
+    + bool twoHanded
+    + Attack attack
+}
+
+class Attack
+{
+    + vector<Range> damages
+    + vector<Effects> effects
+    + int cost
+}
+
+class Effect
+{
+    + vector<Range> damages
+    + vector<State> states
+    + int duration
+}
+
+class ActiveEffect
+{
+    + int startTurn
+}
+
+class BagPotion
+{
+    + vector<Value> effects
+}
+
+abstract class MapObject {
+    # Pos pos
+}
+
+class InteractiveObject
+{
+    # vector<Action> possibleActions
+}
+
+abstract class Living{
+    + int livingId
+    # int livePoint
+    # int level
+    # Characteristics charac
+    # vector<Effect> effects
+    # vector<Attack> attacks
+    # vector<State> states
+}
+
+class Player
+{
+    #vector<BagObject*> bag
+    #BagItem hat
+    #BagItem footWear
+    #bagItem belt
+    #bagItem necklace
+    #bagItem ring1
+    #bagItem ring2
+    #bagWeapon hand1
+    #bagWeapon hand2
+}
+
+class Monster
+{
+    #int monsterClass
+    #vector<DropItem> drop
+}
+
+class NonPlayer
+{
+    #vecotr<Action> possibleActions
+}
+
+class DropItem
+{
+    +double dropProbability
+    +int itemType
+    +int maxDropCount
+    +int getDropCount(int perception)
+}
+
+class Characteristics
+{
+    +map<int,int> baseValue
+    +map<int, int> fixedBonuses
+    +map<int, int> relativeBonuses
+    +map<int, int> fixedArmor
+    +map<int, int> relativeArmor
+
+    +Range apply(Range & baseRange)
+    +Characteristics operator+(Characteristics & other)
+    +bool operator==(Characteristics & other)
+}
+
+class Action
+{
+
+}
+note left: a class for action with NonPlayer (PNJ)
+
+Map "1" *--right-- "many" MapObject
+Map "1" *--left-- "many" startPos
+
+InteractiveObject -up-|> MapObject
+
+Living -up-|> MapObject
+Player -up-|> Living
+Monster -up-|> Living
+NonPlayer -up-|> Living
+
+BagObject -up-|> MapObject
+BagItem -up-|> BagObject
+BagPotion -up-|> BagObject
+BagWeapon -up-|> BagItem
+
+@enduml
