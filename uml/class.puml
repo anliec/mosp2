@@ -1,9 +1,61 @@
 @startuml
 
-class Map{
-    + vector<MapObject*> objects
-    + char[][] tiles
-    + vector<startPos> fightStartPoses
+class World{
+    - shared_ptr<MapManager>[][] maps
+    - int height
+    - int width
+
+    - World()
+    + shared_ptr<World> makeWorld()
+    + shared_ptr<mapManager> getMap(int x, int y)
+}
+
+class MapManager{
+    - list<shared_ptr<MapObject>> objects
+    - map<int, shared_ptr<Living>> players
+    - MapTiles tiles
+    - vector<startPos> fightStartPoses
+    - list<FightManager> onGoingFight
+
+    + bool isLineOfViewFree(Point a, Point b)
+    + vector<Point> shortestPath(Living living, Point dest)
+    + bool isPathValid(vector<Point>)
+}
+
+World "1" *-- "many" MapManager
+
+class FightManager
+{
+    - vector<shared_ptr<Living>> team1
+    - vector<shared_ptr<Living>> team2
+    - vector<shared_ptr<InteractiveObject>> staticObjects
+    - MapTiles tiles
+    - MapManager* parentMapManager
+    - int turnNumber
+    - list<shared_ptr<Living>> playingOrder
+    - list::enumerator<shared_ptr<Living>> currentPlayer
+    - bool isStartPhase
+    - time_t currentPlayerStartTime
+
+    + FightManager(MapManager *parent, vector<shared_ptr<Living>> team1, vector<shared_ptr<Living>> team2)
+    - FightEndResult getEndResultForPlayer(shared_ptr<Player> player)
+}
+
+class MapTiles
+{
+    # char[][] tiles
+    + int width
+    + int height
+
+    + char getTile(int x, int y)
+    + char getTile(Point p)
+}
+
+class FightEndResult
+{
+    + bool win
+    + vector<BagObject> drop
+    + int experience
 }
 
 class startPos
@@ -13,12 +65,16 @@ class startPos
 }
 
 class Point{
-    + int x
-    + int y
+    + char x
+    + char y
+
+    + Point(char x, char y)
 }
 
 class Pos{
-    + int angle
+    + char angle
+
+    + Pos(char x, char y, char a)
 }
 
 Pos -up-|> Point
@@ -31,8 +87,8 @@ class Value
 
 class Range
 {
-    +int valLow
-    +int valHigh
+    +int min
+    +int max
     +int type
     +Value sample()
 }
@@ -42,13 +98,13 @@ class BagObject {
     + int itemId
     + int itemCount
     + int getWeight()
-    + bool operator==(BagObject & other)
+    + bool operator==(BagObject& other)
 }
 
 class BagItem {
     + int itemType
     + Characteristics charac
-    + bool operator==(BagItem & other)
+    + bool operator==(BagItem& other)
 }
 
 class BagWeapon
@@ -59,9 +115,25 @@ class BagWeapon
 
 class Attack
 {
+    + int AttackId
     + vector<Range> damages
     + vector<Effects> effects
     + int cost
+    + int minRange
+    + int maxRange
+    + bool isInLine
+    + bool needVision
+    + int effectSize
+
+    + void applyCharacteristics(Characteristics& c)
+    + AttackDamage sampleDamage(int distFromCenter=0)
+}
+
+class AttackDamage
+{
+    + int attackId
+    + vector<Value> damages
+    + vector<Effects> effects
 }
 
 class Effect
@@ -76,6 +148,8 @@ class ActiveEffect
     + int startTurn
 }
 
+ActiveEffect -up-|> Effect
+
 class BagPotion
 {
     + vector<Value> effects
@@ -88,21 +162,47 @@ abstract class MapObject {
 class InteractiveObject
 {
     # vector<Action> possibleActions
+
+    + bool blockView()
+    + bool useTile()
+}
+
+class StorageObject
+{
+    # vector<shared_ptr<BagObject>> storage
+}
+
+class MapResource
+{
+    # int resourceId
 }
 
 abstract class Living{
     + int livingId
-    # int livePoint
+    + int livePoint
     # int level
+    # string name
     # Characteristics charac
-    # vector<Effect> effects
+    # vector<ActiveEffect> effects
     # vector<Attack> attacks
     # vector<State> states
+    # shared_ptr<FightManager> fightManager
+    # shared_ptr<MapManager> mapManager
+
+    + AttackDamage getDamage(AttackDamage damage)
+    + Characteristics getTotalCurrentCharacteristics()
+    + bool isInState(State state)
+    + void RequestMove(Pos pos)
+    + void RequestMove(vector<Pos> path)
+    + void RequestAttack(int attackId, Pos pos)
+    + void setPos(Pos pos)
+    + Pos getPos()
+    + string getName()
+    + int getLevel()
 }
 
-class Player
+class Character
 {
-    #vector<BagObject*> bag
     #BagItem hat
     #BagItem footWear
     #bagItem belt
@@ -111,6 +211,20 @@ class Player
     #bagItem ring2
     #bagWeapon hand1
     #bagWeapon hand2
+}
+
+class Player
+{
+    # vector<shared_ptr<BagObject>> bag
+
+    + int getBagWeight()
+    + Characteristics getTotalCurrentCharacteristics()
+    + void getEndOfFightResult(FightEndResult result)
+}
+
+class MonsterTeam
+{
+    #vector<Monster> monsters
 }
 
 class Monster
@@ -129,41 +243,78 @@ class DropItem
     +double dropProbability
     +int itemType
     +int maxDropCount
-    +int getDropCount(int perception)
-}
-
-class Characteristics
-{
-    +map<int,int> baseValue
-    +map<int, int> fixedBonuses
-    +map<int, int> relativeBonuses
-    +map<int, int> fixedArmor
-    +map<int, int> relativeArmor
-
-    +Range apply(Range & baseRange)
-    +Characteristics operator+(Characteristics & other)
-    +bool operator==(Characteristics & other)
+    +int getDropCount(int perception=100)
 }
 
 class Action
 {
 
 }
-note left: a class for action with NonPlayer (PNJ)
-
-Map "1" *--right-- "many" MapObject
-Map "1" *--left-- "many" startPos
+note right: a class for action with NonPlayer (PNJ)
 
 InteractiveObject -up-|> MapObject
+MapResource -up-|> InteractiveObject
+StorageObject -up-|> InteractiveObject
 
 Living -up-|> MapObject
-Player -up-|> Living
+Character -up-|> Living
 Monster -up-|> Living
-NonPlayer -up-|> Living
+MonsterTeam -up|> Living
+Player -up-|> Character
+NonPlayer -up-|> Character
+
+MonsterTeam "1" *-- "many" Monster
 
 BagObject -up-|> MapObject
 BagItem -up-|> BagObject
 BagPotion -up-|> BagObject
 BagWeapon -up-|> BagItem
+
+
+MapManager "1" *--right-- "many" MapObject
+MapManager "1" *--left-- "many" startPos
+
+NonPlayer "1" *-- "many" Action
+Monster "1" *-- "many" DropItem
+
+class Characteristics
+{
+    +map<int, int> baseValue
+    +map<int, int> fixedBonuses
+    +map<int, int> relativeBonuses
+    +map<int, int> fixedArmor
+    +map<int, int> relativeArmor
+
+    +Range apply(Range& baseRange)
+    +Characteristics operator+(Characteristics& other)
+    +bool operator==(Characteristics& other)
+}
+
+' Server classes
+
+class WebSocketServer
+{
+    -list<WebSocketClient> clients
+    -QWebSocketServer server
+
+    -WebSocketServer(Qobject* parent=nullptr)
+    +getServer(Qobject* parent=nullptr)
+}
+
+class WebSocketClient
+{
+    -QWebSocket client
+    -shared_ptr<Living> player
+
+    +WebSocketClient(QWebSocket client, Qobject* parent=nullptr)
+    +void sendFullMap()
+    +void sendLivingMove(int livingId, vector<Point> path)
+    +void sendNewMapObject(shared_ptr<MapObject> object)
+    +void sendAttack(shared_ptr<Living> living, AttackDamage attack)
+    +void onMoveRequest(vector<Point> path)
+    +void onAttackRequest(int attackId)
+}
+
+WebSocketServer "1" *-- "many" WebSocketClient
 
 @enduml
